@@ -1,0 +1,14 @@
+/home/martin/School/IPK/bin/Release/net8.0/IPK
+/home/martin/School/IPK/bin/Release/net8.0/IPK.deps.json
+/home/martin/School/IPK/bin/Release/net8.0/IPK.runtimeconfig.json
+/home/martin/School/IPK/bin/Release/net8.0/IPK.dll
+/home/martin/School/IPK/bin/Release/net8.0/IPK.pdb
+/home/martin/School/IPK/obj/Release/net8.0/IPK.GeneratedMSBuildEditorConfig.editorconfig
+/home/martin/School/IPK/obj/Release/net8.0/IPK.AssemblyInfoInputs.cache
+/home/martin/School/IPK/obj/Release/net8.0/IPK.AssemblyInfo.cs
+/home/martin/School/IPK/obj/Release/net8.0/IPK.csproj.CoreCompileInputs.cache
+/home/martin/School/IPK/obj/Release/net8.0/IPK.dll
+/home/martin/School/IPK/obj/Release/net8.0/refint/IPK.dll
+/home/martin/School/IPK/obj/Release/net8.0/IPK.pdb
+/home/martin/School/IPK/obj/Release/net8.0/IPK.genruntimeconfig.cache
+/home/martin/School/IPK/obj/Release/net8.0/ref/IPK.dll
