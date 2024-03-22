@@ -13,12 +13,15 @@ namespace ipk_protocol
         private void SendMessage(string message)
         {
             // Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            // Console.WriteLine("su tu ");
             byte[] bytes = Encoding.ASCII.GetBytes(message);
             clientSocket.Send(bytes);
+            // Console.WriteLine("posrane tu ");
         }
 
         public void Authorization(string login, string displayName, string key)
         {
+            // Console.WriteLine("su tu ");
             string authMessage = "AUTH " + login + " AS " + displayName + " USING " + key + "\r\n";
             SendMessage(authMessage);
         }

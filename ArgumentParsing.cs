@@ -16,11 +16,14 @@ namespace ipk_protocol
             // -r 	3 	uint8 	Maximum number of UDP retransmissions
             // -h 			Prints program help output and exits
             public string? transportProtocol;
-            // string serverAdress;
+            // // string serverAdress;
+            // public UInt16 serverPort = 4567;
+
             public UInt16 serverPort = 6969;
             public UInt16 UdpConfirmationTimeout = 250; // UInt16 == uint16
             public byte maxUdpRetransmissions = 3; // byte == uint8
             public string help = "Usage: client [serverAdress] [serverPort]";
+            // public IPAddress serverAdress = IPAddress.Parse("147.229.8.244");
             public IPAddress serverAdress = IPAddress.Parse("127.0.0.1");
             
             public void getArguments(string[] args)

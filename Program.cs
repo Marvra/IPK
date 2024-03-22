@@ -3,7 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
+// using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 
@@ -16,19 +16,22 @@ namespace ipk_protocol
         open_state,
         error_state,
         end_state
-
     }
     public class Client
     {
         public static bool Connection = true;
         private static SemaphoreSlim responseSemaphore = new SemaphoreSlim(0);
         private static string SemaphoreResult;
+        public static event EventHandler<string> ServerErrorOccurred;
+
+
 
         private static async Task Response(Send data, string[] message, string givenMess)
         {
             switch (message[0])
             {
                 case "BYE":
+                    ServerErrorOccurred.Invoke(null, "BYE");
                     break;
                 case "REPLY":
                     if (message[1] == "OK")
@@ -49,9 +52,10 @@ namespace ipk_protocol
                     }
                     break;
                 case "ERR":
+                    ServerErrorOccurred.Invoke(null, "ERR");
                     break;
                 default :
-                    Console.WriteLine(givenMess);
+                    Console.WriteLine($"{message[2]}: " + givenMess.Substring(givenMess.IndexOf("IS") + 3));
                     break;
             }
         }
@@ -83,7 +87,27 @@ namespace ipk_protocol
         {
             // bool connection = true;
             string userMessage;
+            string[] splitUserMessage;
+            ClientParsing MsgParsing = new ClientParsing();
             states state = states.start_state;
+
+            ServerErrorOccurred += (sender, e ) => {
+                if(e == "BYE" || e == "ERR"){
+                    // responseSemaphore.Release();
+                    // data.Bye();
+                    Environment.Exit(0);
+                }
+            };
+            Console.CancelKeyPress += (sender, e) => {
+            responseSemaphore.Release();
+            // Check if Ctrl+C was pressed
+            if (e.SpecialKey == ConsoleSpecialKey.ControlC)
+                {
+                    Console.WriteLine("Ctrl+C pressed. Exiting...");
+                    // Perform any cleanup or exit logic here
+                    data.Bye();
+                }
+            };
             // // Send data = new Send();
             Console.WriteLine("SENDING");
 
@@ -94,9 +118,12 @@ namespace ipk_protocol
                 {
                     case states.start_state:
                         userMessage = Console.ReadLine();
-                        if (userMessage == "/auth")
+                        splitUserMessage = userMessage.Split(" ");
+
+                        if (splitUserMessage[0] == "/auth")
                         {
-                            data.Authorization("xvrabl06", "epoh", "b696b89a-6959-4394-9918-28e7dbbcb804");
+                            MsgParsing.AuthValidity(userMessage, splitUserMessage);
+                            data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
 
                             // Console.WriteLine("Waiting for Reply resolution");
                             await responseSemaphore.WaitAsync();
@@ -116,13 +143,15 @@ namespace ipk_protocol
                         break;
                     case states.auth_state:
                         userMessage = Console.ReadLine();
-                        if (userMessage == "/auth")
+                        splitUserMessage = userMessage.Split(" ");
+                        if (splitUserMessage[0] == "/auth")
                         {
-                            data.Authorization("xvrabl06", "epoh", "b696b89a-6959-4394-9918-28e7dbbcb804");
+                            MsgParsing.AuthValidity(userMessage, splitUserMessage);
+                            data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
 
-                            Console.WriteLine("Waiting for Reply resolution");
+                            // Console.WriteLine("Waiting for Reply resolution");
                             await responseSemaphore.WaitAsync();
-                            Console.WriteLine("Reply resolved");
+                            // Console.WriteLine("Reply resolved");
                             if (SemaphoreResult == "OK"){
                                 state = states.open_state;
                             } else {
@@ -135,17 +164,44 @@ namespace ipk_protocol
                         {
                             state = states.end_state;
                         }
+                        else if (splitUserMessage[0] == "/rename")
+                        {
+                            MsgParsing.RenameValidity(userMessage,splitUserMessage);
+                        }
                         else
                         {
-                            Console.WriteLine("nieco ine ty kokto");
+                            Console.WriteLine("Please authenticate or leave using /exit");
                         }
                         break;
                     case states.open_state:
                         userMessage = Console.ReadLine();
+                        splitUserMessage = userMessage.Split(" ");
                         if(userMessage == "/exit"){
                             state = states.end_state;
-                        } else {
-                            data.Message(userMessage, "epoh");
+                        }
+                        else if (splitUserMessage[0] == "/join")
+                        { 
+                            MsgParsing.JoinValidity(userMessage, splitUserMessage);
+                            data.Join(MsgParsing.ChannelID,MsgParsing.DisplayName);
+
+                            // Console.WriteLine("Waiting for Reply resolution");
+                            await responseSemaphore.WaitAsync();
+                            // Console.WriteLine("Reply resolved");
+                            // if (SemaphoreResult == "OK"){
+                            //     state = states.open_state;
+                            // } else {
+                            //     state = states.auth_state;
+                            // }
+
+                            responseSemaphore = new SemaphoreSlim(0);
+                        }
+                        else if (splitUserMessage[0] == "/rename")
+                        {
+                            MsgParsing.RenameValidity(userMessage,splitUserMessage);
+                        }
+                        else {
+                            MsgParsing.MsgValidity(userMessage);
+                            data.Message(MsgParsing.MessageContent, MsgParsing.DisplayName);
                         }
                         break;
                     case states.error_state:
