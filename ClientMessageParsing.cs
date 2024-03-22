@@ -24,12 +24,15 @@ namespace ipk_protocol
 
         public bool AuthValidity(string message, string[] messageSplit){
             if(messageSplit.Length != 4){
+                Console.WriteLine("argument to big");
                 return false;
             }
             if(!BaseRegex.IsMatch(messageSplit[1]+messageSplit[3]) || !ASCIIRegex.IsMatch(messageSplit[2])){
+                Console.WriteLine("regex not matched");
                 return false;
             }
-            if(messageSplit[1].Length > 20 || messageSplit[2].Length > 20 || messageSplit[3].Length > 128){
+            if(messageSplit[1].Length > 20 || messageSplit[2].Length > 128 || messageSplit[3].Length > 20){
+                Console.WriteLine("lenght to big");
                 return false;
             }
 
@@ -66,6 +69,8 @@ namespace ipk_protocol
             if(!MsgRegex.IsMatch(message)){
                 return false;
             }
+
+            MessageContent = message;
 
             return false;
         }
