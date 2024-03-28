@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -11,7 +12,14 @@ using System.Threading;
 namespace ipk_protocol
 {
     class ClientParsing
-    {
+    {   
+        enum ErrUserInput
+        {
+            ErrRegex,
+            ErrLenghtPart,
+            ErrLenghtMsg,
+
+        }
         public  string? ChannelID; 
         public  string? DisplayName; 
         public  string? Username;
@@ -21,6 +29,7 @@ namespace ipk_protocol
         private static string PrintableASCIIPattern = @"^[\x21-\x7E]+$";
         private static Regex BaseRegex = new Regex(BasePattern);
         private static Regex ASCIIRegex = new Regex(PrintableASCIIPattern);
+
 
         public bool AuthValidity(string message, string[] messageSplit){
             if(messageSplit.Length != 4){
@@ -48,6 +57,7 @@ namespace ipk_protocol
                 return false;
             }
             if(!BaseRegex.IsMatch(messageSplit[1])){
+                Console.Error.WriteLine("invalid regex");
                 return false;
             }
             if(messageSplit[1].Length > 20){
@@ -90,6 +100,5 @@ namespace ipk_protocol
 
             return true;
         }
-
     }
 }

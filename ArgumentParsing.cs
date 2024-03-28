@@ -24,7 +24,7 @@ namespace ipk_protocol
             public byte maxUdpRetransmissions = 3; // byte == uint8
             public string help = "Usage: client [serverAdress] [serverPort]";
             // public IPAddress serverAdress = IPAddress.Parse("147.229.8.244");
-            public IPAddress serverAdress = IPAddress.Parse("127.0.0.1");
+            public IPAddress[] serverAdress;
             
             public void getArguments(string[] args)
             {
@@ -43,7 +43,7 @@ namespace ipk_protocol
                             break;
                         case "-s":
                             i++; // to skip argument afte -t + saving right argument to transportProtocol
-                            serverAdress = IPAddress.Parse(args[i]);
+                            serverAdress = Dns.GetHostAddresses(args[i]);
                             break;
                         case "-p":
                             i++; // to skip argument afte -t + saving right argument to transportProtocol

@@ -29,13 +29,13 @@ namespace ipk_protocol
                 case "REPLY":
                     if (message[1] == "OK")
                     {
-                        Console.Error.WriteLine($"Success: {message[3]} {message[4]}");
+                        Console.Error.WriteLine($"Success: " + givenMess.Substring(givenMess.IndexOf("IS") + 3));
                         SemaphoreResult = "OK";
                         responseSemaphore.Release();
                     }
                     else
                     {
-                        Console.Error.WriteLine($"Failure: {message[3]} {message[4]}");
+                        Console.Error.WriteLine($"Failure: " + givenMess.Substring(givenMess.IndexOf("IS") + 3));
                         SemaphoreResult = "NOK";
                         responseSemaphore.Release();
                     }
@@ -72,13 +72,66 @@ namespace ipk_protocol
             }
         }
 
+        private static async Task<states> StartState(string userMessage, string[] splitUserMessage, Send data, ClientParsing MsgParsing){
+
+            if (splitUserMessage[0] == "/auth")
+            {
+                MsgParsing.AuthValidity(userMessage, splitUserMessage);
+                data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
+                await responseSemaphore.WaitAsync();
+                responseSemaphore = new SemaphoreSlim(0);
+                
+                if (SemaphoreResult == "OK"){
+                    return states.open_state;
+                } else {
+                    return states.auth_state;
+                }
+            }
+            else
+            {
+                Console.WriteLine("You have to authenticate first using \"/auth {username} {secret} {displayname}\""); 
+                return states.start_state;
+            }
+        }
+
+        private static async Task<states> AuthState(string userMessage, string[] splitUserMessage, Send data, ClientParsing MsgParsing)
+        {
+            if (splitUserMessage[0] == "/auth")
+            {
+                MsgParsing.AuthValidity(userMessage, splitUserMessage);
+                data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
+                await responseSemaphore.WaitAsync();
+                responseSemaphore = new SemaphoreSlim(0);
+
+                if (SemaphoreResult == "OK"){
+                    return states.open_state;
+                } else {
+                    return states.auth_state;
+                }
+            }
+            else if (userMessage == "/exit")
+            {
+                return states.end_state;
+            }
+            else if (splitUserMessage[0] == "/rename")
+            {
+                MsgParsing.RenameValidity(userMessage,splitUserMessage);
+            }
+            else
+            {
+                Console.WriteLine("Please authenticate or leave using /exit");
+            }
+            return states.auth_state;
+        }
+        
+
         private static async Task Sending(Send data)
         {
+            ClientParsing MsgParsing = new ClientParsing( );
             // bool connection = true;
             string userMessage;
             string[] splitUserMessage;
-            ClientParsing MsgParsing = new ClientParsing();
-            states state = states.start_state;
+            var state = states.start_state;
 
             ServerErrorOccurred += (sender, e ) => {
                 if(e == "BYE" || e == "ERR"){
@@ -104,66 +157,27 @@ namespace ipk_protocol
             while (Connection)
             {
                 Console.WriteLine($"STATE : {state}");
+
+                // userMessage = Console.ReadLine();
+                // splitUserMessage = userMessage.Split(" ");
+
                 switch (state)
                 {
                     case states.start_state:
                         userMessage = Console.ReadLine();
                         splitUserMessage = userMessage.Split(" ");
 
-                        if (splitUserMessage[0] == "/auth")
-                        {
-                            MsgParsing.AuthValidity(userMessage, splitUserMessage);
-                            // data.Authorization("xvrabl06","epoh","a3bb2d2f-c085-4fcd-aa1c-edbdac32c575");
-                            data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
+                        state = await StartState(userMessage, splitUserMessage, data, MsgParsing);
 
-                            // Console.WriteLine("Waiting for Reply resolution");
-                            await responseSemaphore.WaitAsync();
-                            // Console.WriteLine("Reply resolved");
-                            if (SemaphoreResult == "OK"){
-                                state = states.open_state;
-                            } else {
-                                state = states.auth_state;
-                            }
+                    break;
 
-                            responseSemaphore = new SemaphoreSlim(0);
-                            }
-                        else
-                        {
-                            Console.WriteLine("You have to authenticate first");
-                        }
-                        break;
                     case states.auth_state:
                         userMessage = Console.ReadLine();
                         splitUserMessage = userMessage.Split(" ");
-                        if (splitUserMessage[0] == "/auth")
-                        {
-                            MsgParsing.AuthValidity(userMessage, splitUserMessage);
-                            data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
+                        state = await AuthState(userMessage, splitUserMessage, data, MsgParsing);
 
-                            // Console.WriteLine("Waiting for Reply resolution");
-                            await responseSemaphore.WaitAsync();
-                            // Console.WriteLine("Reply resolved");
-                            if (SemaphoreResult == "OK"){
-                                state = states.open_state;
-                            } else {
-                                state = states.auth_state;
-                            }
+                    break;
 
-                            responseSemaphore = new SemaphoreSlim(0);
-                        }
-                        else if (userMessage == "/exit")
-                        {
-                            state = states.end_state;
-                        }
-                        else if (splitUserMessage[0] == "/rename")
-                        {
-                            MsgParsing.RenameValidity(userMessage,splitUserMessage);
-                        }
-                        else
-                        {
-                            Console.WriteLine("Please authenticate or leave using /exit");
-                        }
-                        break;
                     case states.open_state:
                         userMessage = Console.ReadLine();
                         splitUserMessage = userMessage.Split(" ");
@@ -195,17 +209,23 @@ namespace ipk_protocol
                             Console.WriteLine(" asas" + MsgParsing.MessageContent);
                             data.Message(MsgParsing.MessageContent, MsgParsing.DisplayName);
                         }
-                        break;
+                    break;
+
                     case states.error_state:
-                        break;
+
+                    break;
+
                     case states.end_state:
+
                         data.Bye();
                         Connection = false;
-                        break;
+
+                    break;
                 }
             }
             Console.WriteLine("END OF SENDING");
         }
+
 
         public void MainProces(ArgParser arguments){
             Send data = new Send(); 
