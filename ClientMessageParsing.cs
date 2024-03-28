@@ -31,18 +31,17 @@ namespace ipk_protocol
         private static Regex ASCIIRegex = new Regex(PrintableASCIIPattern);
 
 
-        public bool AuthValidity(string message, string[] messageSplit){
+        public bool AuthValidity(string message){
+            string[] messageSplit = message.Split(" ");
+
             if(messageSplit.Length != 4){
-                Console.WriteLine("argument to big");
-                return false;
+                throw new Exception($"Expected number of arguments 4, got: {messageSplit.Length}");
             }
             if(!BaseRegex.IsMatch(messageSplit[1]+messageSplit[3]) || !ASCIIRegex.IsMatch(messageSplit[2])){
-                Console.WriteLine("regex not matched");
-                return false;
+                throw new Exception("Expected regex of arguments [Username == A-Za-z0-9\\-] [Secret == A-Za-z0-9\\-] [DisplayName == x21-x7E].");
             }
             if(messageSplit[1].Length > 20 || messageSplit[2].Length > 128 || messageSplit[3].Length > 20){
-                Console.WriteLine("lenght to big");
-                return false;
+               throw new Exception($"Expected lenght of arguments [Username == 20] [Secret == 128] [DisplayName == 20], got : Username = {messageSplit[1].Length} Secret = {messageSplit[2].Length} DisplayName = {messageSplit[3].Length}.");
             }
 
             Username = messageSplit[1];
@@ -52,16 +51,17 @@ namespace ipk_protocol
             return true;
         }
 
-        public bool JoinValidity(string message, string[] messageSplit){
+        public bool JoinValidity(string message){
+            string[] messageSplit = message.Split(" ");
+
             if(messageSplit.Length != 2){
-                return false;
+                throw new Exception($"Expected number of arguments 2, got: {messageSplit.Length}");
             }
             if(!BaseRegex.IsMatch(messageSplit[1])){
-                Console.Error.WriteLine("invalid regex");
-                return false;
+                throw new Exception("Expected regex of arguments [ChannelName == A-Za-z0-9\\-].");
             }
             if(messageSplit[1].Length > 20){
-                return false;
+                throw new Exception($"Expected lenght of arguments [ChannelName == 20], got : Username = {messageSplit[1].Length}");
             }
 
             ChannelID = messageSplit[1];
@@ -74,10 +74,10 @@ namespace ipk_protocol
             Regex MsgRegex = new Regex(MsgPattern);
             
             if(message.Length > 1400){
-                return false;
+                throw new Exception($"Expected lenght of arguments [MessageContent == 20], got : Username = {message.Length}");
             }
             if(!MsgRegex.IsMatch(message)){
-                return false;
+                throw new Exception("Expected regex of arguments [MessageContent == x20-x7E].");
             }
 
             MessageContent = message;
@@ -85,15 +85,17 @@ namespace ipk_protocol
             return false;
         }
 
-         public bool RenameValidity(string message, string[] messageSplit){
+         public bool RenameValidity(string message){
+            string[] messageSplit = message.Split(" ");
+
             if(messageSplit.Length != 2){
-                return false;
+                throw new Exception($"Expected number of arguments 2, got: {messageSplit.Length}");
             }
             if(!ASCIIRegex.IsMatch(messageSplit[1])){
-                return false;
+                throw new Exception("Expected regex of arguments [MessageContent == x21-x7E].");
             }
             if(messageSplit[1].Length > 20){
-                return false;
+                throw new Exception($"Expected lenght of arguments [DisplayName == 20], got : Username = {messageSplit[1].Length}");
             }
 
             DisplayName = messageSplit[1];

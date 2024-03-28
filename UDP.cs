@@ -101,11 +101,11 @@ namespace ipk_protocol
         }
 
 
-        private static async Task<states> StartState(string userMessage, string[] splitUserMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID,  IPEndPoint ep){
+        private static async Task<states> StartState(string userMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID,  IPEndPoint ep){
 
-            if (splitUserMessage[0] == "/auth")
+            if (userMessage.StartsWith("/auth"))
             {
-                MsgParsing.AuthValidity(userMessage, splitUserMessage);
+                MsgParsing.AuthValidity(userMessage);
                 data.clientSocket.SendTo(data.Authorization(MsgParsing.Username, MsgParsing.DisplayName, MsgParsing.Secret, MessageID), ep);
                 
                 // await responseSemaphore.WaitAsync();
@@ -130,12 +130,12 @@ namespace ipk_protocol
             return states.start_state;
         }
 
-        private static async Task<states> AuthState(string userMessage, string[] splitUserMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID, IPEndPoint ep)
+        private static async Task<states> AuthState(string userMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID, IPEndPoint ep)
         {
-            if (splitUserMessage[0] == "/auth")
+            if (userMessage.StartsWith("/auth"))
             {
-                MsgParsing.AuthValidity(userMessage, splitUserMessage);
-                data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret, MessageID);
+                MsgParsing.AuthValidity(userMessage);
+                data.clientSocket.SendTo(data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret, MessageID), ep);
                 // await responseSemaphore.WaitAsync();
                 // responseSemaphore = new SemaphoreSlim(0);
 
@@ -155,22 +155,22 @@ namespace ipk_protocol
             }
             return states.auth_state;
         }
-        private async Task<states> OpenState(string userMessage, string[] splitUserMessage, ClientParsing MsgParsing, UdpSend data,  UInt16 MessageID)
+        private async Task<states> OpenState(string userMessage, ClientParsing MsgParsing, UdpSend data,  UInt16 MessageID)
         {
             if(userMessage == "/exit"){
                 return states.end_state;
             }
-            else if (splitUserMessage[0] == "/join")
+            else if (userMessage.StartsWith("/join"))
             { 
-                MsgParsing.JoinValidity(userMessage, splitUserMessage);
+                MsgParsing.JoinValidity(userMessage);
                 data.clientSocket.SendTo(data.Join($"discord.{MsgParsing.ChannelID}",MsgParsing.DisplayName, MessageID), remoteEndPoint);
 
                 // await responseSemaphore.WaitAsync();
                 // responseSemaphore = new SemaphoreSlim(0);
             }
-            else if (splitUserMessage[0] == "/rename")
+            else if (userMessage.StartsWith("/rename"))
             {
-                MsgParsing.RenameValidity(userMessage,splitUserMessage);
+                MsgParsing.RenameValidity(userMessage);
             }
             else {
                 MsgParsing.MsgValidity(userMessage);
@@ -189,7 +189,6 @@ namespace ipk_protocol
 
             ClientParsing MsgParsing = new ClientParsing( );
             string userMessage;
-            string[] splitUserMessage;
             var state = states.start_state;
 
             UInt16 MessageID = 0;
@@ -203,25 +202,24 @@ namespace ipk_protocol
                 Console.WriteLine($"STATE : {state}");
 
                 userMessage = Console.ReadLine();
-                splitUserMessage = userMessage.Split(" ");
 
                 switch (state)
                 {
                     case states.start_state:
 
-                        state = await StartState(userMessage, splitUserMessage, MsgParsing, data, MessageID, ep);
+                        state = await StartState(userMessage, MsgParsing, data, MessageID, ep);
 
                     break;
 
                     case states.auth_state:
 
-                        state = await AuthState(userMessage, splitUserMessage, MsgParsing, data, MessageID, ep);
+                        state = await AuthState(userMessage, MsgParsing, data, MessageID, ep);
 
                     break;
 
                     case states.open_state:
 
-                        state = await OpenState(userMessage, splitUserMessage, MsgParsing, data, MessageID);
+                        state = await OpenState(userMessage, MsgParsing, data, MessageID);
                     break;
 
                     case states.error_state:
