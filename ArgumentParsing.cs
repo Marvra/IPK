@@ -24,7 +24,7 @@ namespace ipk_protocol
             public byte maxUdpRetransmissions = 3; // byte == uint8
             public string help = "Usage: client [serverAdress] [serverPort]";
             // public IPAddress serverAdress = IPAddress.Parse("147.229.8.244");
-            public IPAddress[] serverAdress;
+            public IPAddress[]? serverAdress;
             
             public void getArguments(string[] args)
             {

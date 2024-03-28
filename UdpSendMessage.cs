@@ -8,22 +8,14 @@ namespace ipk_protocol
 {
     class UdpSend
     {
-        // public string message;
-        // public Socket clientSocket;
-        // private void SendMessage(string message)
-        // {
-        //     // Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        //     // Console.WriteLine("su tu ");
-        //     byte[] bytes = Encoding.ASCII.GetBytes(message);
-        //     clientSocket.Send(bytes);
-        //     // Console.WriteLine("posrane tu ");
-        // }
+        public Socket clientSocket;
 
         public byte[] Authorization(string login, string displayName, string key, UInt16 MessageID)
         {
             byte[] msg = new byte[6 + login.Length + displayName.Length + key.Length];
             msg[0] = (byte)UdpMsgType.AUTH;
-            BitConverter.GetBytes(MessageID).CopyTo(msg, 1);
+            msg[1] = (byte)((MessageID >> 8) & 0xFF); // little endian problem skipped  most significant byte
+            msg[2] = (byte)(MessageID & 0xFF); // least significant byte
             Encoding.ASCII.GetBytes(login).CopyTo(msg, 3);
             msg[3 + login.Length] = 0;
             Encoding.ASCII.GetBytes(displayName).CopyTo(msg, 4 + login.Length);
@@ -40,7 +32,8 @@ namespace ipk_protocol
         {
             byte[] msg = new byte[5 + ChannelID.Length + displayName.Length];
             msg[0] = (byte)UdpMsgType.JOIN;
-            BitConverter.GetBytes(MessageID).CopyTo(msg, 1);
+            msg[1] = (byte)((MessageID >> 8) & 0xFF); // little endian problem skipped  most significant byte
+            msg[2] = (byte)(MessageID & 0xFF); // least significant byte
             Encoding.ASCII.GetBytes(ChannelID).CopyTo(msg, 3);
             Encoding.ASCII.GetBytes(displayName).CopyTo(msg, 4 + ChannelID.Length);
             msg[4 + ChannelID.Length + displayName.Length] = 0;
@@ -50,7 +43,8 @@ namespace ipk_protocol
         {
             byte[] msg = new byte[5 + displayName.Length + MessageContents.Length];
             msg[0] = (byte)UdpMsgType.MSG;
-            BitConverter.GetBytes(MessageID).CopyTo(msg, 1);
+            msg[1] = (byte)((MessageID >> 8) & 0xFF); // little endian problem skipped  most significant byte
+            msg[2] = (byte)(MessageID & 0xFF); // least significant byte
             Encoding.ASCII.GetBytes(displayName).CopyTo(msg, 3);
             msg[3 + displayName.Length] = 0;
             Encoding.ASCII.GetBytes(MessageContents).CopyTo(msg, 4 + displayName.Length);
@@ -67,11 +61,12 @@ namespace ipk_protocol
 
             return msg;
         }
-        public byte[] Bye(UInt16 RefMessageID)
+        public byte[] Bye(UInt16 MessageID)
         {
             byte[] msg = new byte[3];
             msg[0] = (byte)UdpMsgType.BYE;
-            BitConverter.GetBytes(RefMessageID).CopyTo(msg, 1);
+            msg[1] = (byte)((MessageID >> 8) & 0xFF); // little endian problem skipped  most significant byte
+            msg[2] = (byte)(MessageID & 0xFF); // least significant byte
             return msg;
         }
 

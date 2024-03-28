@@ -16,6 +16,24 @@ namespace ipk_protocol
         private static SemaphoreSlim responseSemaphore = new SemaphoreSlim(0);
         private static string SemaphoreResult;
         public static event EventHandler<string> ServerErrorOccurred;
+        private static event EventHandler StdinNotAvailable;
+
+        public static void CtrlDPressed(){
+            bool notPressed = true;
+            while (notPressed)
+                {
+                    ConsoleKeyInfo keyInfo = Console.ReadKey(true);
+
+                    // Check if Ctrl+D was pressed
+                    if (keyInfo.Modifiers == ConsoleModifiers.Control && keyInfo.Key == ConsoleKey.D)
+                    {
+                        // Raise the Ctrl+D event
+                        StdinNotAvailable?.Invoke(null, null);
+                        notPressed = false;
+                        break;
+                    }
+                }
+         }
 
 
 
@@ -89,8 +107,8 @@ namespace ipk_protocol
             }
             else
             {
-                Console.WriteLine("You have to authenticate first using \"/auth {username} {secret} {displayname}\""); 
-                return states.start_state;
+                Console.Error.WriteLine("ERR: You have to authenticate first using \"/auth {username} {secret} {displayname}\"\n"); 
+                return states.auth_state;
             }
         }
 
@@ -113,27 +131,50 @@ namespace ipk_protocol
             {
                 return states.end_state;
             }
-            else if (splitUserMessage[0] == "/rename")
-            {
-                MsgParsing.RenameValidity(userMessage,splitUserMessage);
-            }
             else
             {
                 Console.WriteLine("Please authenticate or leave using /exit");
             }
             return states.auth_state;
         }
+        private static async Task<states> OpenState(string userMessage, string[] splitUserMessage, Send data, ClientParsing MsgParsing)
+        {
+            if(userMessage == "/exit"){
+                return states.end_state;
+            }
+            else if (splitUserMessage[0] == "/join")
+            { 
+                MsgParsing.JoinValidity(userMessage, splitUserMessage);
+                data.Join(MsgParsing.ChannelID,MsgParsing.DisplayName);
+
+                await responseSemaphore.WaitAsync();
+                responseSemaphore = new SemaphoreSlim(0);
+            }
+            else if (splitUserMessage[0] == "/rename")
+            {
+                MsgParsing.RenameValidity(userMessage,splitUserMessage);
+            }
+            else {
+                MsgParsing.MsgValidity(userMessage);
+                data.Message(MsgParsing.MessageContent, MsgParsing.DisplayName);
+
+                Console.WriteLine($"Message sent: {MsgParsing.MessageContent}");
+            }
+            return states.open_state;
+        }
         
 
         private static async Task Sending(Send data)
         {
             ClientParsing MsgParsing = new ClientParsing( );
-            // bool connection = true;
             string userMessage;
             string[] splitUserMessage;
             var state = states.start_state;
-
+            
+            Task.Run(() => CtrlDPressed());
+            
             ServerErrorOccurred += (sender, e ) => {
+
                 if(e == "BYE" || e == "ERR"){
                     // responseSemaphore.Release();
                     // data.Bye();
@@ -141,74 +182,60 @@ namespace ipk_protocol
                     Environment.Exit(0);
                 }
             };
-            Console.CancelKeyPress += (sender, e) => {
-            responseSemaphore.Release();
-            // Check if Ctrl+C was pressed
-            if (e.SpecialKey == ConsoleSpecialKey.ControlC)
-                {
-                    Console.WriteLine("Ctrl+C pressed. Exiting...");
-                    // Perform any cleanup or exit logic here
-                    data.Bye();
-                }
+
+            StdinNotAvailable += (sender, e) =>
+            {
+                Console.WriteLine("Ctrl+D pressed. Exiting...");
+                responseSemaphore.Release();
+                // Perform any cleanup or tasks
+                // Exit the program
+                data.Bye();
+                Environment.Exit(0);
             };
-            // // Send data = new Send();
+            
+            
+            Console.CancelKeyPress += (sender, e) => {
+
+                responseSemaphore.Release();
+                if (e.SpecialKey == ConsoleSpecialKey.ControlC)
+                    {
+                        Console.WriteLine("Ctrl+C pressed. Exiting...");
+                        data.Bye();
+                    }
+            };
+
             Console.WriteLine("SENDING");
 
             while (Connection)
             {
                 Console.WriteLine($"STATE : {state}");
 
-                // userMessage = Console.ReadLine();
-                // splitUserMessage = userMessage.Split(" ");
+                userMessage = Console.ReadLine();
+
+                if (userMessage == null)
+                {
+                    StdinNotAvailable?.Invoke(null, EventArgs.Empty);
+                }
+
+                splitUserMessage = userMessage.Split(" ");
 
                 switch (state)
                 {
                     case states.start_state:
-                        userMessage = Console.ReadLine();
-                        splitUserMessage = userMessage.Split(" ");
 
                         state = await StartState(userMessage, splitUserMessage, data, MsgParsing);
 
                     break;
 
                     case states.auth_state:
-                        userMessage = Console.ReadLine();
-                        splitUserMessage = userMessage.Split(" ");
+
                         state = await AuthState(userMessage, splitUserMessage, data, MsgParsing);
 
                     break;
 
                     case states.open_state:
-                        userMessage = Console.ReadLine();
-                        splitUserMessage = userMessage.Split(" ");
-                        if(userMessage == "/exit"){
-                            state = states.end_state;
-                        }
-                        else if (splitUserMessage[0] == "/join")
-                        { 
-                            MsgParsing.JoinValidity(userMessage, splitUserMessage);
-                            data.Join($"discord.{MsgParsing.ChannelID}",MsgParsing.DisplayName);
 
-                            // Console.WriteLine("Waiting for Reply resolution");
-                            await responseSemaphore.WaitAsync();
-                            // Console.WriteLine("Reply resolved");
-                            // if (SemaphoreResult == "OK"){
-                            //     state = states.open_state;
-                            // } else {
-                            //     state = states.auth_state;
-                            // }
-
-                            responseSemaphore = new SemaphoreSlim(0);
-                        }
-                        else if (splitUserMessage[0] == "/rename")
-                        {
-                            MsgParsing.RenameValidity(userMessage,splitUserMessage);
-                        }
-                        else {
-                            MsgParsing.MsgValidity(userMessage);
-                            Console.WriteLine(" asas" + MsgParsing.MessageContent);
-                            data.Message(MsgParsing.MessageContent, MsgParsing.DisplayName);
-                        }
+                        state = await OpenState(userMessage, splitUserMessage, data, MsgParsing);
                     break;
 
                     case states.error_state:
