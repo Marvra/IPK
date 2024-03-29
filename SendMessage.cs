@@ -34,6 +34,12 @@ namespace ipk_protocol
             SendMessage(sendMessage);
         }
 
+        public void Error(string messageContent, string displayName)
+        {
+            string sendMessage = "MSG FROM " + displayName + " IS " + messageContent + "\r\n";
+            SendMessage(sendMessage);
+        }
+
         public async void Bye()
         {
             string sendMessage = "BYE\r\n";

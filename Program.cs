@@ -10,7 +10,7 @@ using System.Threading;
 
 namespace ipk_protocol 
 {   
-    public enum states 
+    public enum States 
     {
         start_state,
         auth_state,

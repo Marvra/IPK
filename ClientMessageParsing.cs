@@ -13,13 +13,6 @@ namespace ipk_protocol
 {
     class ClientParsing
     {   
-        enum ErrUserInput
-        {
-            ErrRegex,
-            ErrLenghtPart,
-            ErrLenghtMsg,
-
-        }
         public  string? ChannelID; 
         public  string? DisplayName; 
         public  string? Username;
@@ -31,13 +24,13 @@ namespace ipk_protocol
         private static Regex ASCIIRegex = new Regex(PrintableASCIIPattern);
 
 
-        public bool AuthValidity(string message){
+        public void AuthValidity(string message){
             string[] messageSplit = message.Split(" ");
 
             if(messageSplit.Length != 4){
                 throw new Exception($"Expected number of arguments 4, got: {messageSplit.Length}");
             }
-            if(!BaseRegex.IsMatch(messageSplit[1]+messageSplit[3]) || !ASCIIRegex.IsMatch(messageSplit[2])){
+            if(!BaseRegex.IsMatch(messageSplit[1]+messageSplit[2]) || !ASCIIRegex.IsMatch(messageSplit[3])){
                 throw new Exception("Expected regex of arguments [Username == A-Za-z0-9\\-] [Secret == A-Za-z0-9\\-] [DisplayName == x21-x7E].");
             }
             if(messageSplit[1].Length > 20 || messageSplit[2].Length > 128 || messageSplit[3].Length > 20){
@@ -47,11 +40,9 @@ namespace ipk_protocol
             Username = messageSplit[1];
             Secret = messageSplit[2];
             DisplayName = messageSplit[3];
-
-            return true;
         }
 
-        public bool JoinValidity(string message){
+        public void JoinValidity(string message){
             string[] messageSplit = message.Split(" ");
 
             if(messageSplit.Length != 2){
@@ -65,11 +56,9 @@ namespace ipk_protocol
             }
 
             ChannelID = messageSplit[1];
-
-            return true;
         }
 
-        public bool MsgValidity(string message){
+        public void MsgValidity(string message){
             string MsgPattern = @"^[\x20-\x7E]+$";
             Regex MsgRegex = new Regex(MsgPattern);
             
@@ -81,11 +70,9 @@ namespace ipk_protocol
             }
 
             MessageContent = message;
-
-            return false;
         }
 
-         public bool RenameValidity(string message){
+         public void RenameValidity(string message){
             string[] messageSplit = message.Split(" ");
 
             if(messageSplit.Length != 2){
@@ -99,8 +86,6 @@ namespace ipk_protocol
             }
 
             DisplayName = messageSplit[1];
-
-            return true;
         }
     }
 }

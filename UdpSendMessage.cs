@@ -67,6 +67,7 @@ namespace ipk_protocol
             msg[0] = (byte)UdpMsgType.BYE;
             msg[1] = (byte)((MessageID >> 8) & 0xFF); // little endian problem skipped  most significant byte
             msg[2] = (byte)(MessageID & 0xFF); // least significant byte
+            
             return msg;
         }
 

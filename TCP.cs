@@ -15,9 +15,9 @@ namespace ipk_protocol
     {
          public static bool Connection = true;
         private static SemaphoreSlim responseSemaphore = new SemaphoreSlim(0);
-        private static string SemaphoreResult;
-        public static event EventHandler<string> ServerErrorOccurred;
-        private static event EventHandler StdinNotAvailable;
+        private static string? SemaphoreResult;
+        public static event EventHandler<string>? ServerErrorOccurred;
+        private static event EventHandler? StdinNotAvailable;
 
         // public static void CtrlDPressed(){
         //     bool notPressed = true;
@@ -63,8 +63,12 @@ namespace ipk_protocol
                     Console.Error.WriteLine($"ERR FROM {message[2]}: " + givenMess.Substring(givenMess.IndexOf("IS") + 3));
                     ServerErrorOccurred.Invoke(null, "ERR");
                     break;
-                default :
+                case "MSG" :
                     Console.WriteLine($"{message[2]}: " + givenMess.Substring(givenMess.IndexOf("IS") + 3));
+                    break;
+                default:
+                    Console.Error.WriteLine($"ERR: " + givenMess); // invalid message err from server 
+                    ServerErrorOccurred.Invoke(null, "ERR");
                     break;
             }
         }
@@ -73,7 +77,7 @@ namespace ipk_protocol
         {
             var buffer = new byte[1_024];
             // bool connection = true;
-            Console.WriteLine("RECIEVING");
+            // Console.WriteLine("RECIEVING");
             while (Connection)
             {
                 try
@@ -92,7 +96,7 @@ namespace ipk_protocol
             }
         }
 
-        private static async Task<states> StartState(string userMessage, Send data, ClientParsing MsgParsing){
+        private static async Task<States> StartState(string userMessage, Send data, ClientParsing MsgParsing){
 
             if (userMessage.StartsWith("/auth"))
             {
@@ -103,7 +107,7 @@ namespace ipk_protocol
                 catch (Exception e)
                 {
                     Console.Error.WriteLine($"ERR: {e.Message}");
-                    return states.auth_state;
+                    return States.auth_state;
                 }
 
                 data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
@@ -111,19 +115,19 @@ namespace ipk_protocol
                 responseSemaphore = new SemaphoreSlim(0);
                 
                 if (SemaphoreResult == "OK"){
-                    return states.open_state;
+                    return States.open_state;
                 } else {
-                    return states.auth_state;
+                    return States.auth_state;
                 }
             }
             else
             {
                 Console.Error.WriteLine("ERR: You have to authenticate first using \"/auth {username} {secret} {displayname}\"\n"); 
-                return states.auth_state;
+                return States.auth_state;
             }
         }
 
-        private static async Task<states> AuthState(string userMessage, Send data, ClientParsing MsgParsing)
+        private static async Task<States> AuthState(string userMessage, Send data, ClientParsing MsgParsing)
         {
             if (userMessage.StartsWith("/auth"))
             {
@@ -135,7 +139,7 @@ namespace ipk_protocol
                 catch (Exception e)
                 {
                     Console.Error.WriteLine($"ERR: {e.Message}");
-                    return states.auth_state;
+                    return States.auth_state;
                 }
 
                 data.Authorization(MsgParsing.Username,MsgParsing.DisplayName,MsgParsing.Secret);
@@ -143,25 +147,25 @@ namespace ipk_protocol
                 responseSemaphore = new SemaphoreSlim(0);
 
                 if (SemaphoreResult == "OK"){
-                    return states.open_state;
+                    return States.open_state;
                 } else {
-                    return states.auth_state;
+                    return States.auth_state;
                 }
             }
             else if (userMessage.StartsWith("/exit"))
             {
-                return states.end_state;
+                return States.end_state;
             }
             else
             {
-                Console.WriteLine("Please authenticate or leave using /exit");
+                Console.WriteLine("ERR: Please authenticate or leave using /exit");
             }
-            return states.auth_state;
+            return States.auth_state;
         }
-        private static async Task<states> OpenState(string userMessage, Send data, ClientParsing MsgParsing)
+        private static async Task<States> OpenState(string userMessage, Send data, ClientParsing MsgParsing)
         {
             if(userMessage == "/exit"){
-                return states.end_state;
+                return States.end_state;
             }
             else if (userMessage.StartsWith("/join"))
             {
@@ -172,13 +176,15 @@ namespace ipk_protocol
                 catch (Exception e)
                 {
                     Console.Error.WriteLine($"ERR: {e.Message}");
-                    return states.open_state;
+                    return States.open_state;
                 }
 
                 data.Join(MsgParsing.ChannelID, MsgParsing.DisplayName);
 
                 await responseSemaphore.WaitAsync();
                 responseSemaphore = new SemaphoreSlim(0);
+
+                return States.open_state;
             }
             else if (userMessage.StartsWith("/rename"))
             {
@@ -189,7 +195,7 @@ namespace ipk_protocol
                 catch (Exception e)
                 {
                     Console.Error.WriteLine($"ERR: {e.Message}");
-                    return states.open_state;
+                    return States.open_state;
                 }
             }
             else if (userMessage.StartsWith("/"))
@@ -205,7 +211,7 @@ namespace ipk_protocol
                 catch (Exception e)
                 {
                     Console.Error.WriteLine($"ERR: {e.Message}");
-                    return states.open_state;
+                    return States.open_state;
                 }
 
                 data.Message(MsgParsing.MessageContent, MsgParsing.DisplayName);
@@ -213,7 +219,7 @@ namespace ipk_protocol
                 Console.WriteLine($"Message sent: {MsgParsing.MessageContent}");
 
             }
-            return states.open_state;
+            return States.open_state;
         }
         
 
@@ -221,7 +227,7 @@ namespace ipk_protocol
         {
             ClientParsing MsgParsing = new ClientParsing( );
             string userMessage;
-            var state = states.start_state;
+            var state = States.start_state;
             
             // Task.Run(() => CtrlDPressed());
             
@@ -236,7 +242,7 @@ namespace ipk_protocol
 
             StdinNotAvailable += (sender, e) =>
             {
-                Console.WriteLine("Ctrl+D pressed. Exiting...");
+                // Console.WriteLine("Ctrl+D pressed. Exiting...");
                 responseSemaphore.Release();
                 // Perform any cleanup or tasks
                 // Exit the program
@@ -255,11 +261,11 @@ namespace ipk_protocol
                     }
             };
 
-            Console.WriteLine("SENDING");
+            // Console.WriteLine("SENDING");
 
             while (Connection)
             {
-                Console.WriteLine($"STATE : {state}");
+                // Console.WriteLine($"STATE : {state}");
 
                 userMessage = Console.ReadLine();
 
@@ -270,28 +276,28 @@ namespace ipk_protocol
 
                 switch (state)
                 {
-                    case states.start_state:
+                    case States.start_state:
 
                         state = await StartState(userMessage, data, MsgParsing);
 
                     break;
 
-                    case states.auth_state:
+                    case States.auth_state:
 
                         state = await AuthState(userMessage, data, MsgParsing);
 
                     break;
 
-                    case states.open_state:
+                    case States.open_state:
 
                         state = await OpenState(userMessage, data, MsgParsing);
                     break;
 
-                    case states.error_state:
+                    case States.error_state:
 
                     break;
 
-                    case states.end_state:
+                    case States.end_state:
 
                         data.Bye();
                         Connection = false;

@@ -8,22 +8,11 @@ namespace ipk_protocol
 {
     class ArgParser
     {
-            // spravit cez commandline parser  url: https://devblogs.microsoft.com/ifdef-windows/command-line-parser-on-net5/
-            // -t 	User provided 	tcp or udp 	Transport protocol used for connection
-            // -s 	User provided 	IP address or hostname 	Server IP or hostname
-            // -p 	4567 	uint16 	Server port
-            // -d 	250 	uint16 	UDP confirmation timeout
-            // -r 	3 	uint8 	Maximum number of UDP retransmissions
-            // -h 			Prints program help output and exits
             public string? transportProtocol;
-            // // string serverAdress;
-            // public UInt16 serverPort = 4567;
-
             public UInt16 serverPort = 6969;
-            public UInt16 UdpConfirmationTimeout = 250; // UInt16 == uint16
-            public byte maxUdpRetransmissions = 3; // byte == uint8
+            public UInt16 ConfirmationTimeout = 250;
+            public byte Retransmissions = 3;
             public string help = "Usage: client [serverAdress] [serverPort]";
-            // public IPAddress serverAdress = IPAddress.Parse("147.229.8.244");
             public IPAddress[]? serverAdress;
             
             public void getArguments(string[] args)
@@ -51,11 +40,11 @@ namespace ipk_protocol
                             break;
                         case "-d":
                             i++; // to skip argument afte -t + saving right argument to transportProtocol
-                            UdpConfirmationTimeout = UInt16.Parse(args[i]);
+                            ConfirmationTimeout = UInt16.Parse(args[i]);
                             break;
                         case "-r":
                             i++; // to skip argument afte -t + saving right argument to transportProtocol
-                            maxUdpRetransmissions = byte.Parse(args[i]);
+                            Retransmissions = byte.Parse(args[i]);
                             break;
                         default:
                             Console.WriteLine("Invalid argument: " + args[i]);
