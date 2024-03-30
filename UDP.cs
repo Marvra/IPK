@@ -23,7 +23,7 @@ namespace ipk_protocol
     class UDP
     {
         public bool Connection = true;
-        EndPoint remoteEndPoint;
+        private static EndPoint remoteEndPoint;
 
         private static UInt16 ConfirmationTimeout;
         private static int RetryCoutnt;
@@ -34,9 +34,11 @@ namespace ipk_protocol
         private static int SemaphoreResult;
         public static event EventHandler<string> ServerErrorOccurred;
         private static event EventHandler? StdinNotAvailable;
-        public void FillMsgRecieved(UdpRecieve msg, byte[] buffer, int bytes)
+        public void FillMsgRecieved(UdpRecieve msg, byte[] buffer, int bytes, Socket s, UdpSend data)
         {
             msg.MsgType = (UdpMsgType)buffer[0];
+            int DisplayNameEnd;
+            int MessageContentsEnd;
             switch (msg.MsgType)
             {
                 case UdpMsgType.REPLY:
@@ -60,23 +62,29 @@ namespace ipk_protocol
                 break;
                 case UdpMsgType.MSG:
                     msg.MessageID = BitConverter.ToUInt16(buffer, 1);// Message ID
-                    int DisplayNameEnd = Array.IndexOf(buffer, (byte)0, 3); // Find end of DIssplayName (terminated by zero byte)
+                    DisplayNameEnd = Array.IndexOf(buffer, (byte)0, 3); // Find end of DIssplayName (terminated by zero byte)
                     msg.DisplayName = Encoding.ASCII.GetString(buffer, 3, DisplayNameEnd - 3);
-                    int MessageContentsEnd = Array.IndexOf(buffer, (byte)0, DisplayNameEnd+1); // Find end of MessageContent (terminated by zero byte)
-                    msg.MessageContents = Encoding.ASCII.GetString(buffer, DisplayNameEnd+1 , MessageContentsEnd + DisplayNameEnd - 3);
+                    MessageContentsEnd = Array.IndexOf(buffer, (byte)0, DisplayNameEnd+1); // Find end of MessageContent (terminated by zero byte)
+                    msg.MessageContents = Encoding.ASCII.GetString(buffer, DisplayNameEnd+1 , MessageContentsEnd - DisplayNameEnd-1);
                     Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
 
                 break;
                 case UdpMsgType.CONFIRM:
                     ConfirmGot = BitConverter.ToUInt16(buffer, 1);
-                    Console.WriteLine($"CONFIRM GOT  : {ConfirmGot}\n");
                 break;
                 case UdpMsgType.BYE:
+                    s.SendTo(data.Confirm(msg.MessageID),remoteEndPoint);
                     ServerErrorOccurred.Invoke(null, "BYE");
-                    Console.WriteLine("BYE GOT \n");
                     Connection = false;
                 break;
                 case UdpMsgType.ERR:
+                    msg.MessageID = BitConverter.ToUInt16(buffer, 1);// Message ID
+                    DisplayNameEnd = Array.IndexOf(buffer, (byte)0, 3); // Find end of DIssplayName (terminated by zero byte)
+                    msg.DisplayName = Encoding.ASCII.GetString(buffer, 3, DisplayNameEnd - 3);
+                    MessageContentsEnd = Array.IndexOf(buffer, (byte)0, DisplayNameEnd+1); // Find end of MessageContent (terminated by zero byte)
+                    msg.MessageContents = Encoding.ASCII.GetString(buffer, DisplayNameEnd+1 , MessageContentsEnd - DisplayNameEnd-1);
+                    Console.Error.WriteLine($"ERR FROM {msg.DisplayName}: {msg.MessageContents}");
+                    s.SendTo(data.Confirm(msg.MessageID),remoteEndPoint);
                     ServerErrorOccurred.Invoke(null, "ERR");
                 break;
 
@@ -85,7 +93,7 @@ namespace ipk_protocol
 
         }
 
-        private static async Task ConfirmCheck(byte[] datagram, UdpSend data, EndPoint ep)
+        private static async Task ConfirmCheck(byte[] datagram, UdpSend data)
         {
             int retry = 0;
             while (retry < RetryCoutnt)
@@ -98,7 +106,7 @@ namespace ipk_protocol
                 }
                 else
                 {
-                    data.clientSocket.SendTo(datagram, ep);
+                    data.clientSocket.SendTo(datagram, remoteEndPoint);
                     retry++;
                 }
             }
@@ -111,33 +119,28 @@ namespace ipk_protocol
 
         public async void Recieving(Socket s,ArgParser arguments)
         {
-            Console.WriteLine("RECIEVING");
             byte[] receiveBuffer = new byte[1024];
             UdpRecieve MsgRecieved = new UdpRecieve();
             UdpSend data = new UdpSend();
-            IPAddress ip = IPAddress.Parse("147.229.8.244");
             remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
             s.Bind(remoteEndPoint);
 
             while(Connection)
             {
-                Console.WriteLine("Waiting for a message");
                 int bytesReceived = s.ReceiveFrom(receiveBuffer, ref remoteEndPoint);
-                Console.WriteLine($"Received {bytesReceived} bytes from {remoteEndPoint}");
 
-                FillMsgRecieved(MsgRecieved,receiveBuffer, bytesReceived);
+                FillMsgRecieved(MsgRecieved,receiveBuffer, bytesReceived, s, data);
 
                 if ( MsgRecieved.MsgType != UdpMsgType.CONFIRM ){
                    // Console.WriteLine($"Received message type: {MsgRecieved.MsgType}\n ID: {MsgRecieved.MessageID}\n Result: {MsgRecieved.result}\n Reference message ID: {MsgRecieved.RefMsgId}\n Message: {MsgRecieved.MessageContents}");
                     s.SendTo(data.Confirm(MsgRecieved.MessageID),remoteEndPoint);
-                    Console.WriteLine($"CONFIRM SNED TO THIS ID :{MsgRecieved.MessageID}");
                 }
             }
 
         }
 
 
-        private static async Task<States> StartState(string userMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID,  IPEndPoint ep){
+        private static async Task<States> StartState(string userMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID){
             byte[] UdpDatagram;
 
             if (userMessage.StartsWith("/auth"))
@@ -152,9 +155,9 @@ namespace ipk_protocol
                     return States.auth_state;
                 }
                 UdpDatagram = data.Authorization(MsgParsing.Username, MsgParsing.DisplayName, MsgParsing.Secret, MessageID);
-                data.clientSocket.SendTo(UdpDatagram, ep);
+                data.clientSocket.SendTo(UdpDatagram, remoteEndPoint);
 
-                await ConfirmCheck(UdpDatagram, data, ep);
+                await ConfirmCheck(UdpDatagram, data);
                 
                 await responseSemaphore.WaitAsync();
                 responseSemaphore = new SemaphoreSlim(0);
@@ -175,7 +178,7 @@ namespace ipk_protocol
             }
         }
 
-        private static async Task<States> AuthState(string userMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID, IPEndPoint ep)
+        private static async Task<States> AuthState(string userMessage, ClientParsing MsgParsing, UdpSend data, UInt16 MessageID)
         {
             byte[] UdpDatagram;
 
@@ -192,9 +195,9 @@ namespace ipk_protocol
                 }
 
                 UdpDatagram = data.Authorization(MsgParsing.Username, MsgParsing.DisplayName, MsgParsing.Secret, MessageID);
-                data.clientSocket.SendTo(UdpDatagram, ep);
+                data.clientSocket.SendTo(UdpDatagram, remoteEndPoint);
 
-                await ConfirmCheck(UdpDatagram, data, ep);
+                await ConfirmCheck(UdpDatagram, data);
 
                 await responseSemaphore.WaitAsync();
                 responseSemaphore = new SemaphoreSlim(0);
@@ -237,7 +240,7 @@ namespace ipk_protocol
                 UdpDatagram = data.Join(MsgParsing.ChannelID,MsgParsing.DisplayName, MessageID);
                 data.clientSocket.SendTo(UdpDatagram, remoteEndPoint);
 
-                await ConfirmCheck(UdpDatagram, data, remoteEndPoint);
+                await ConfirmCheck(UdpDatagram, data);
 
                 await responseSemaphore.WaitAsync();
                 responseSemaphore = new SemaphoreSlim(0);
@@ -276,7 +279,7 @@ namespace ipk_protocol
                 UdpDatagram = data.Msg(MsgParsing.DisplayName, MsgParsing.MessageContent, MessageID);
                 data.clientSocket.SendTo(UdpDatagram, remoteEndPoint);
 
-                await ConfirmCheck(UdpDatagram, data, remoteEndPoint);
+                await ConfirmCheck(UdpDatagram, data);
 
                 Console.WriteLine($"Message sent: {MsgParsing.MessageContent}");
             }
@@ -285,7 +288,6 @@ namespace ipk_protocol
 
         public async Task Sending(Socket s,ArgParser arguments)
         {
-            Console.WriteLine("SENDING");
             UdpSend data = new UdpSend();
             data.clientSocket = s;
 
@@ -295,17 +297,22 @@ namespace ipk_protocol
 
             UInt16 MessageID = 0;
 
-            IPAddress ip = IPAddress.Parse(arguments.serverAdress[0].ToString());
+            // IPAddress ip = IPAddress.Parse("147.229.8.244");
+            IPAddress ip = IPAddress.Parse(arguments.serverAdress.ToString());
 
-            IPEndPoint ep = new IPEndPoint(	ip, arguments.serverPort);
+            remoteEndPoint = new IPEndPoint(ip, arguments.serverPort);
 
             Console.CancelKeyPress += (sender, e) => {
 
                 responseSemaphore.Release();
                 if (e.SpecialKey == ConsoleSpecialKey.ControlC)
                     {
-                        Console.WriteLine("Ctrl+C pressed. Exiting...");
-                        data.clientSocket.SendTo(data.Bye(MessageID), ep); //////////  POZOR NA ENDPOINTS TREBA NEJAKO PORIESIT
+                        try{
+                            data.clientSocket.SendTo(data.Bye(MessageID), remoteEndPoint);
+                        } catch (Exception ex){
+                            Console.WriteLine("ERR: " + ex.Message);
+                        }
+                        // data.clientSocket.SendTo(data.Bye(MessageID), remoteEndPoint); //////////  POZOR NA ENDPOINTS TREBA NEJAKO PORIESIT
                         Environment.Exit(0);
                     }
             };
@@ -344,13 +351,13 @@ namespace ipk_protocol
                 {
                     case States.start_state:
 
-                        state = await StartState(userMessage, MsgParsing, data, MessageID, ep);
+                        state = await StartState(userMessage, MsgParsing, data, MessageID);
 
                     break;
 
                     case States.auth_state:
 
-                        state = await AuthState(userMessage, MsgParsing, data, MessageID, ep);
+                        state = await AuthState(userMessage, MsgParsing, data, MessageID);
 
                     break;
 

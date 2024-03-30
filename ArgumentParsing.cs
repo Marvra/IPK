@@ -13,7 +13,7 @@ namespace ipk_protocol
             public UInt16 ConfirmationTimeout = 250;
             public byte Retransmissions = 3;
             public string help = "Usage: client [serverAdress] [serverPort]";
-            public IPAddress[]? serverAdress;
+            public IPAddress? serverAdress;
             
             public void getArguments(string[] args)
             {
@@ -32,7 +32,8 @@ namespace ipk_protocol
                             break;
                         case "-s":
                             i++; // to skip argument afte -t + saving right argument to transportProtocol
-                            serverAdress = Dns.GetHostAddresses(args[i]);
+                            IPAddress[] adressed = Dns.GetHostAddresses(args[i]);
+                            serverAdress = adressed[0];
                             break;
                         case "-p":
                             i++; // to skip argument afte -t + saving right argument to transportProtocol

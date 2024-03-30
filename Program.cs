@@ -27,19 +27,17 @@ namespace ipk_protocol
             Arguments.getArguments(args);
             if (Arguments.transportProtocol == "udp")
             {
-                Console.WriteLine("UDP");
                 UDP ClientUdp = new UDP();
                 ClientUdp.MainProces(Arguments);
 
             }
             else if (Arguments.transportProtocol == "tcp")
             {
-                Console.WriteLine("TCP");
                 TCP ClientTcp = new TCP();
                 ClientTcp.MainProces(Arguments);
 
             } else {
-                Console.Error.WriteLine("Invalid transport protocol");
+                Console.Error.WriteLine("ERR: Invalid transport protocol");
                 return;
             }
         }
