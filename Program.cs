@@ -1,12 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-using System;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
-// using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading;
-//secret : a3bb2d2f-c085-4fcd-aa1c-edbdac32c575
+﻿//secret : a3bb2d2f-c085-4fcd-aa1c-edbdac32c575
 
 namespace ipk_protocol 
 {   
@@ -22,9 +14,11 @@ namespace ipk_protocol
     {
         static public void Main(string[] args)
         {
-
+            // Get arguments from command line
             ArgParser Arguments = new ArgParser();
             Arguments.getArguments(args);
+
+            // Start the client based on users input
             if (Arguments.transportProtocol == "udp")
             {
                 UDP ClientUdp = new UDP();
@@ -36,10 +30,12 @@ namespace ipk_protocol
                 TCP ClientTcp = new TCP();
                 ClientTcp.MainProces(Arguments);
 
-            } else {
-                Console.Error.WriteLine("ERR: Invalid transport protocol");
-                return;
             }
+            else
+            {
+                Console.WriteLine("Invalid transport protocol");
+            }
+            return;
         }
     }
 }

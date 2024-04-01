@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -18,13 +19,16 @@ namespace ipk_protocol
         public  string? Username;
         public  string? Secret;
         public  string? MessageContent;
-        private static string BasePattern = @"^[A-Za-z0-9\-]+$";
-        private static string PrintableASCIIPattern = @"^[\x21-\x7E]+$";
-        private static Regex BaseRegex = new Regex(BasePattern);
-        private static Regex ASCIIRegex = new Regex(PrintableASCIIPattern);
+        private static Regex BaseRegex = new Regex( @"^[A-Za-z0-9\-]+$");
+        private static Regex ASCIIRegex = new Regex(@"^[\x21-\x7E]+$");
 
-
-        public void AuthValidity(string message){
+        /* 
+            Method for setting the attributes of the class
+            Checks grammar of arguments given by user
+            Used for /auth command
+        */
+        public void AuthValidity(string message)
+        {
             string[] messageSplit = message.Split(" ");
 
             if(messageSplit.Length != 4){
@@ -42,7 +46,13 @@ namespace ipk_protocol
             DisplayName = messageSplit[3];
         }
 
-        public void JoinValidity(string message){
+        /* 
+            Method for setting the attributes of the class
+            Checks grammar of arguments given by user
+            Used for /join command
+        */
+        public void JoinValidity(string message)
+        {
             string[] messageSplit = message.Split(" ");
 
             if(messageSplit.Length != 2){
@@ -58,9 +68,14 @@ namespace ipk_protocol
             ChannelID = messageSplit[1];
         }
 
-        public void MsgValidity(string message){
-            string MsgPattern = @"^[\x20-\x7E]+$";
-            Regex MsgRegex = new Regex(MsgPattern);
+        /* 
+            Method for setting the attributes of the class
+            Checks grammar of arguments given by user
+            Used for messages sent by user
+        */
+        public void MsgValidity(string message)
+        {
+            Regex MsgRegex = new Regex( @"^[\x20-\x7E]+$");
             
             if(message.Length > 1400){
                 throw new Exception($"Expected lenght of arguments [MessageContent == 20], got : Username = {message.Length}");
@@ -72,7 +87,13 @@ namespace ipk_protocol
             MessageContent = message;
         }
 
-         public void RenameValidity(string message){
+        /* 
+            Method for setting the attributes of the class
+            Checks grammar of arguments given by user
+            Used for /rename command
+        */
+        public void RenameValidity(string message)
+        {
             string[] messageSplit = message.Split(" ");
 
             if(messageSplit.Length != 2){
